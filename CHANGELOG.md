@@ -13,7 +13,7 @@ All notable changes to `laravel-translate` will be documented in this file.
 - Batch translation for arrays and collections
 - Queue support for large translation jobs
 - Blade directives (`@translate`, `@translateStart/@translateEnd`)
-- Helper functions (`t()`, `translate()`, `translate_batch()`)
+- Helper functions (`translateText()`, `translate()`, `translate_batch()`)
 - Facade support
 - CLI commands (translate:string, translate:file, translate:sync, translate:clear-cache)
 - Middleware for auto-locale detection

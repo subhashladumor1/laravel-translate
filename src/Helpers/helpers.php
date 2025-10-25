@@ -2,7 +2,7 @@
 
 use Subhashladumor1\Translate\Facades\Translate;
 
-if (!function_exists('t')) {
+if (!function_exists('translateText')) {
     /**
      * Translate text to target language.
      *
@@ -11,7 +11,7 @@ if (!function_exists('t')) {
      * @param string $sourceLang
      * @return string
      */
-    function t(string $text, ?string $targetLang = null, string $sourceLang = 'auto'): string
+    function translateText(string $text, ?string $targetLang = null, string $sourceLang = 'auto'): string
     {
         return Translate::translate($text, $targetLang, $sourceLang);
     }
