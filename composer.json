@@ -3,7 +3,7 @@
     "description": "🌐 Professional multi-source translation package for Laravel 11+ with free APIs (LibreTranslate, Lingva, MyMemory), smart caching, batch translation, CLI tools, and analytics dashboard. Zero API costs!",
     "type": "library",
     "license": "MIT",
-    "version":"1.0.0",
+    "version":"1.0.1",
     "keywords": [
         "laravel",
         "translation",

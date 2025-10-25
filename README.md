@@ -105,7 +105,7 @@ TRANSLATE_CACHE_TTL=86400
 
 ```php
 // Simple translation
-echo t('Hello World', 'es');
+echo translateText('Hello World', 'es');
 // Output: Hola Mundo
 
 // With auto-detection
@@ -135,7 +135,7 @@ $translation = Translate::translate('Good morning', 'fr');
 @translateEnd
 
 <!-- Dynamic locale -->
-<p>{{ t('Thank you', app()->getLocale()) }}</p>
+<p>{{ translateText('Thank you', app()->getLocale()) }}</p>
 ```
 
 ---
@@ -569,8 +569,8 @@ class ProductController extends Controller
                     'product_id' => $product->id,
                     'language' => $lang,
                 ], [
-                    'name' => t($product->name, $lang),
-                    'description' => t($product->description, $lang),
+                    'name' => translateText($product->name, $lang),
+                    'description' => translateText($product->description, $lang),
                     'features' => translate_array($product->features, $lang),
                 ]);
             }
@@ -586,11 +586,11 @@ class ProductController extends Controller
 ```blade
 <!-- resources/views/blog/post.blade.php -->
 <article>
-    <h1>{{ t($post->title, app()->getLocale()) }}</h1>
+    <h1>{{ translateText($post->title, app()->getLocale()) }}</h1>
     
     <div class="meta">
-        <span>{{ t('Published on', app()->getLocale()) }}: {{ $post->published_at }}</span>
-        <span>{{ t('By', app()->getLocale()) }} {{ $post->author }}</span>
+        <span>{{ translateText('Published on', app()->getLocale()) }}: {{ $post->published_at }}</span>
+        <span>{{ translateText('By', app()->getLocale()) }} {{ $post->author }}</span>
     </div>
     
     <div class="content">
@@ -600,9 +600,9 @@ class ProductController extends Controller
     </div>
     
     <div class="tags">
-        <strong>{{ t('Tags', app()->getLocale()) }}:</strong>
+        <strong>{{ translateText('Tags', app()->getLocale()) }}:</strong>
         @foreach($post->tags as $tag)
-            <span class="tag">{{ t($tag, app()->getLocale()) }}</span>
+            <span class="tag">{{ translateText($tag, app()->getLocale()) }}</span>
         @endforeach
     </div>
 </article>
@@ -616,13 +616,13 @@ public function sendContactForm(Request $request)
     $userLang = $request->user()->preferred_language ?? 'en';
     
     // Send confirmation in user's language
-    $confirmationMessage = t(
+    $confirmationMessage = translateText(
         'Thank you for contacting us! We will respond within 24 hours.',
         $userLang
     );
     
     // Send notification to admin in default language
-    $adminNotification = t(
+    $adminNotification = translateText(
         'New contact form submission from {name}',
         config('app.locale')
     );
@@ -694,7 +694,7 @@ Returns analytics data including cache stats and latency.
 
 | Function | Description | Example |
 |----------|-------------|---------|
-| `t()` | Short translation | `t('Hello', 'es')` |
+| `translateText()` | Translate text | `translateText('Hello', 'es')` |
 | `translate()` | Full translation | `translate('Hello', 'fr')` |
 | `translate_batch()` | Batch translate | `translate_batch(['Hi', 'Bye'], 'de')` |
 | `detect_language()` | Detect language | `detect_language('Bonjour')` |
