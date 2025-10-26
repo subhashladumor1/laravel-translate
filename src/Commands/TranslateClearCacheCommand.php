@@ -36,7 +36,7 @@ class TranslateClearCacheCommand extends Command
             $this->info('✓ Translation cache cleared successfully!');
 
             if ($this->option('analytics')) {
-                app('translator')->clearAnalytics();
+                app('translate.manager')->clearAnalytics();
                 $this->info('✓ Analytics data cleared successfully!');
             }
 

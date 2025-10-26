@@ -27,12 +27,12 @@ class TranslateServiceProvider extends ServiceProvider
         );
 
         // Register the main service
-        $this->app->singleton('translator', function ($app) {
+        $this->app->singleton('translate.manager', function ($app) {
             return new TranslatorManager($app);
         });
 
         // Register facade alias
-        $this->app->alias('translator', TranslatorManager::class);
+        $this->app->alias('translate.manager', TranslatorManager::class);
     }
 
     /**
@@ -87,7 +87,7 @@ class TranslateServiceProvider extends ServiceProvider
     {
         // @translate directive
         Blade::directive('translate', function ($expression) {
-            return "<?php echo app('translator')->translate({$expression}); ?>";
+            return "<?php echo app('translate.manager')->translate({$expression}); ?>";
         });
 
         // @translateStart and @translateEnd for block translation
@@ -96,12 +96,12 @@ class TranslateServiceProvider extends ServiceProvider
         });
 
         Blade::directive('translateEnd', function ($expression) {
-            return "<?php echo app('translator')->translate(ob_get_clean(), {$expression}); ?>";
+            return "<?php echo app('translate.manager')->translate(ob_get_clean(), {$expression}); ?>";
         });
 
         // @detectLang directive
         Blade::directive('detectLang', function ($expression) {
-            return "<?php echo app('translator')->detectLanguage({$expression}); ?>";
+            return "<?php echo app('translate.manager')->detectLanguage({$expression}); ?>";
         });
     }
 }

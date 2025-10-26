@@ -71,6 +71,6 @@ if (!function_exists('translate_array')) {
      */
     function translate_array(array $data, ?string $targetLang = null, string $sourceLang = 'auto'): array
     {
-        return app('translator')->translateArray($data, $targetLang ?? config('translate.target_lang'), $sourceLang);
+        return app('translate.manager')->translateArray($data, $targetLang ?? config('translate.target_lang'), $sourceLang);
     }
 }
