@@ -39,10 +39,10 @@ Automatic fallback • Smart caching • Batch translation • Analytics dashboa
 
 ### 🔥 Core Features
 - ✅ **5 Free Translation APIs**
-  - LibreTranslate (Primary)
-  - Lingva Translate
+  - Lingva Translate (Primary)
   - MyMemory
   - Google Free
+  - LibreTranslate (need api key)
   - Argos (Offline)
 - ✅ **Auto Language Detection**
 - ✅ **Intelligent Fallback Chain**
