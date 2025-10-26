@@ -20,7 +20,7 @@ Automatic fallback • Smart caching • Batch translation • Analytics dashboa
 
 ## ✨ Why Laravel Translate?
 
-🎯 **Zero API Costs** - Use completely free translation services  
+🎯 **Zero API Costs** - Use completely free translation services (no API key needed!)  
 ⚡ **Lightning Fast** - Smart caching reduces API calls by 90%+  
 🔄 **Bulletproof** - Automatic fallback across 5 translation services  
 🎨 **Developer Friendly** - Blade directives, helpers, facades, CLI  
@@ -39,10 +39,10 @@ Automatic fallback • Smart caching • Batch translation • Analytics dashboa
 
 ### 🔥 Core Features
 - ✅ **5 Free Translation APIs**
-  - Lingva Translate (Primary)
-  - MyMemory
-  - Google Free
-  - LibreTranslate (need api key)
+  - Lingva Translate (Default - No API Key)
+  - Google Free (No API Key)
+  - MyMemory (No API Key)
+  - LibreTranslate (Free tier available)
   - Argos (Offline)
 - ✅ **Auto Language Detection**
 - ✅ **Intelligent Fallback Chain**
@@ -53,7 +53,7 @@ Automatic fallback • Smart caching • Batch translation • Analytics dashboa
 <td width="50%">
 
 ### 🛠️ Developer Tools
-- ✅ **4 Powerful CLI Commands**
+- ✅ **5 Powerful CLI Commands**
 - ✅ **Blade Directives**
 - ✅ **Helper Functions**
 - ✅ **Facade Support**
@@ -61,6 +61,7 @@ Automatic fallback • Smart caching • Batch translation • Analytics dashboa
 - ✅ **Queue Integration**
 - ✅ **Analytics Dashboard**
 - ✅ **Translation Logging**
+- ✅ **Service Testing Tool**
 
 </td>
 </tr>
@@ -87,13 +88,21 @@ php artisan vendor:publish --tag=translate-config
 Add to your `.env` file:
 
 ```env
-TRANSLATE_DEFAULT_SERVICE=libre
+# Default service (works without API key)
+TRANSLATE_DEFAULT_SERVICE=lingva
+
+# Enable caching for better performance
 TRANSLATE_CACHE_ENABLED=true
 TRANSLATE_CACHE_DRIVER=redis
 TRANSLATE_CACHE_TTL=86400
+
+# Optional: Enable LibreTranslate with API key
+# Get free key at https://portal.libretranslate.com
+TRANSLATE_LIBRE_ENABLED=false
+TRANSLATE_LIBRE_API_KEY=your-api-key-here
 ```
 
-**That's it!** 🎉 The package auto-discovers and registers itself.
+**That's it!** 🎉 The package works out-of-the-box with 3 services (Lingva, Google, MyMemory) - no API key required!
 
 ---
 
@@ -233,7 +242,26 @@ $translated = app('translator')->translateArray($data, 'es');
 
 ### 🔧 CLI Commands
 
-#### **1. Translate String**
+#### **1. Test Services**
+
+```bash
+# Test all translation services
+php artisan translate:test
+
+# Test specific service
+php artisan translate:test --service=lingva
+
+# Custom text and language
+php artisan translate:test --text="Good morning" --target=fr
+```
+
+This command helps you:
+- ✅ Verify which services are working
+- ✅ Check API response times
+- ✅ Diagnose connection issues
+- ✅ See translation quality
+
+#### **2. Translate String**
 
 ```bash
 # Basic usage
@@ -245,7 +273,7 @@ php artisan translate:string "Bonjour" en --source=fr
 # Output: Hello
 ```
 
-#### **2. Translate Files**
+#### **3. Translate Files**
 
 ```bash
 # Translate Laravel language file
@@ -258,7 +286,7 @@ php artisan translate:file resources/lang/en/auth.php fr --output=lang/fr/auth.p
 php artisan translate:file resources/lang/en/validation.php de --format=json
 ```
 
-#### **3. Sync Translations**
+#### **4. Sync Translations**
 
 ```bash
 # Sync to multiple languages
@@ -271,7 +299,7 @@ php artisan translate:sync --source=en --target=es --force
 php artisan translate:sync --source=en --target=fr --path=lang
 ```
 
-#### **4. Clear Cache**
+#### **5. Clear Cache**
 
 ```bash
 # Clear translation cache
@@ -381,11 +409,12 @@ Edit `config/translate.php`:
 
 ```php
 return [
-    // Default translation service
-    'default_service' => env('TRANSLATE_DEFAULT_SERVICE', 'libre'),
+    // Default translation service (no API key required)
+    'default_service' => env('TRANSLATE_DEFAULT_SERVICE', 'lingva'),
     
     // Fallback chain - tries services in order
-    'fallback_chain' => ['libre', 'lingva', 'mymemory', 'google'],
+    // Services without API key requirements are prioritized
+    'fallback_chain' => ['lingva', 'google', 'mymemory', 'libre'],
     
     // Default languages
     'source_lang' => env('TRANSLATE_SOURCE_LANG', 'auto'),
@@ -404,15 +433,26 @@ return [
     // Service endpoints
     'services' => [
         'libre' => [
-            'enabled' => env('TRANSLATE_LIBRE_ENABLED', true),
+            'enabled' => env('TRANSLATE_LIBRE_ENABLED', false), // Requires API key
             'endpoint' => 'https://libretranslate.com',
-            'api_key' => env('TRANSLATE_LIBRE_API_KEY', null), // Optional
-            'timeout' => 10,
+            'api_key' => env('TRANSLATE_LIBRE_API_KEY', null), // Get free key at https://portal.libretranslate.com
+            'timeout' => 15,
         ],
         'lingva' => [
-            'enabled' => env('TRANSLATE_LINGVA_ENABLED', true),
+            'enabled' => env('TRANSLATE_LINGVA_ENABLED', true), // No API key needed
             'endpoint' => 'https://lingva.ml',
-            'timeout' => 10,
+            'timeout' => 15,
+        ],
+        'google' => [
+            'enabled' => env('TRANSLATE_GOOGLE_ENABLED', true), // No API key needed
+            'endpoint' => 'https://translate.googleapis.com',
+            'timeout' => 15,
+        ],
+        'mymemory' => [
+            'enabled' => env('TRANSLATE_MYMEMORY_ENABLED', true), // No API key needed
+            'endpoint' => 'https://api.mymemory.translated.net',
+            'email' => env('TRANSLATE_MYMEMORY_EMAIL', null), // Optional for higher limits
+            'timeout' => 15,
         ],
         // ... more services
     ],
@@ -467,50 +507,98 @@ TRANSLATE_CACHE_DRIVER=database
 <th>API Key</th>
 <th>Offline</th>
 <th>Rate Limit</th>
-</tr>
-<tr>
-<td>🟢 <strong>LibreTranslate</strong></td>
-<td>⚡⚡⚡</td>
-<td>⭐⭐⭐⭐</td>
-<td>No</td>
-<td>❌</td>
-<td>Generous</td>
+<th>Status</th>
 </tr>
 <tr>
 <td>🟢 <strong>Lingva</strong></td>
 <td>⚡⚡⚡⚡</td>
 <td>⭐⭐⭐⭐</td>
-<td>No</td>
+<td>❌ No</td>
+<td>❌</td>
+<td>Generous</td>
+<td>✅ Default</td>
+</tr>
+<tr>
+<td>🟢 <strong>Google Free</strong></td>
+<td>⚡⚡⚡⚡⚡</td>
+<td>⭐⭐⭐⭐⭐</td>
+<td>❌ No</td>
 <td>❌</td>
 <td>Good</td>
+<td>✅ Active</td>
 </tr>
 <tr>
 <td>🟡 <strong>MyMemory</strong></td>
 <td>⚡⚡</td>
 <td>⭐⭐⭐</td>
-<td>No</td>
+<td>❌ No</td>
 <td>❌</td>
-<td>Limited</td>
+<td>1000/day</td>
+<td>✅ Active</td>
 </tr>
 <tr>
-<td>🟡 <strong>Google Free</strong></td>
-<td>⚡⚡⚡⚡⚡</td>
-<td>⭐⭐⭐⭐⭐</td>
-<td>No</td>
+<td>🟡 <strong>LibreTranslate</strong></td>
+<td>⚡⚡⚡</td>
+<td>⭐⭐⭐⭐</td>
+<td>⚠️ Required</td>
 <td>❌</td>
-<td>Moderate</td>
+<td>100K/mo free</td>
+<td>⚙️ Optional</td>
 </tr>
 <tr>
 <td>🟢 <strong>Argos</strong></td>
 <td>⚡⚡⚡</td>
 <td>⭐⭐⭐</td>
-<td>No</td>
+<td>❌ No</td>
 <td>✅</td>
 <td>Unlimited</td>
+<td>⚙️ Optional</td>
 </tr>
 </table>
 
 **Legend:** ⚡ = Fast | ⭐ = Quality Rating
+
+**Important Notes:**
+- **Lingva, Google, MyMemory**: Work out-of-the-box, no API key required
+- **LibreTranslate**: Now requires free API key from [portal.libretranslate.com](https://portal.libretranslate.com)
+- **Argos**: Self-hosted, offline translation (requires installation)
+
+---
+
+### 🔑 LibreTranslate API Key Setup (Optional)
+
+LibreTranslate now requires an API key. Get one for **FREE** (100,000 characters/month):
+
+**Step 1: Get Free API Key**
+1. Visit [https://portal.libretranslate.com](https://portal.libretranslate.com)
+2. Sign up (no credit card required)
+3. Get your API key from dashboard
+
+**Step 2: Configure Laravel**
+
+Add to `.env`:
+```env
+TRANSLATE_LIBRE_ENABLED=true
+TRANSLATE_LIBRE_API_KEY=your-api-key-here
+```
+
+**Step 3: Test**
+```bash
+php artisan translate:test --service=libre
+```
+
+**Alternative: Self-Host LibreTranslate**
+```bash
+# Run locally with Docker (no API key needed)
+docker run -d -p 5000:5000 libretranslate/libretranslate
+```
+
+Then configure:
+```env
+TRANSLATE_LIBRE_ENABLED=true
+TRANSLATE_LIBRE_ENDPOINT=http://localhost:5000
+# No API key needed for self-hosted
+```
 
 ---
 
@@ -716,6 +804,7 @@ Returns analytics data including cache stats and latency.
 
 | Command | Description |
 |---------|-------------|
+| `translate:test` | Test all translation services |
 | `translate:string {text} {target}` | Translate a string |
 | `translate:file {source} {target}` | Translate entire file |
 | `translate:sync --source=en --target=es,fr` | Sync translations |
@@ -780,36 +869,6 @@ if (RateLimiter::tooManyAttempts('translate:'.$request->ip(), 60)) {
 - ✅ Use Argos for sensitive data (offline)
 - ✅ Cache can be encrypted
 
-**Read our [Security Policy](SECURITY.md) for more details.**
-
----
-
-## 🧪 Testing
-
-```bash
-# Run tests
-composer test
-
-# With coverage
-composer test-coverage
-
-# Code formatting
-composer format
-```
-
-**Test Example:**
-
-```php
-use Subhashladumor1\Translate\Facades\Translate;
-
-public function test_translation_works()
-{
-    $translation = Translate::translate('Hello', 'es');
-    $this->assertIsString($translation);
-    $this->assertNotEmpty($translation);
-}
-```
-
 ---
 
 ## 🤝 Contributing
@@ -827,28 +886,43 @@ We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for deta
 
 ---
 
-## 📝 Changelog
-
-All notable changes are documented in [CHANGELOG.md](CHANGELOG.md).
-
-**Latest Version: 1.0.0**
-- ✨ Initial release
-- 🚀 Multi-source translation support
-- 💾 Smart caching system
-- 📊 Analytics dashboard
-- 🎨 Blade directives and helpers
-- 🔧 CLI tools
-
----
-
 ## 🆘 Troubleshooting
+
+### **LibreTranslate API Key Error?**
+
+If you see: `"Visit https://portal.libretranslate.com to get an API key"`
+
+**Solution 1: Use services that don't require API key (Default)**
+```bash
+# Package now uses Lingva by default (no API key needed)
+php artisan translate:test
+# Should show Lingva, Google, MyMemory working
+```
+
+**Solution 2: Get free LibreTranslate API key**
+1. Visit https://portal.libretranslate.com
+2. Sign up (100,000 characters/month FREE)
+3. Add to `.env`:
+```env
+TRANSLATE_LIBRE_ENABLED=true
+TRANSLATE_LIBRE_API_KEY=your-api-key-here
+```
+
+**Solution 3: Self-host LibreTranslate**
+```bash
+docker run -d -p 5000:5000 libretranslate/libretranslate
+```
+```env
+TRANSLATE_LIBRE_ENDPOINT=http://localhost:5000
+```
 
 ### **Translations not working?**
 
-1. Check internet connectivity
-2. Verify services are enabled in config
-3. Clear cache: `php artisan translate:clear-cache`
-4. Check logs: `storage/logs/laravel.log`
+1. Test services: `php artisan translate:test`
+2. Check internet connectivity
+3. Verify services are enabled in config
+4. Clear cache: `php artisan translate:clear-cache`
+5. Check logs: `storage/logs/laravel.log`
 
 ### **Cache not working?**
 
