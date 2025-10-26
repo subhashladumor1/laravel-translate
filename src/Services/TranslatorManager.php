@@ -140,19 +140,51 @@ class TranslatorManager
     public function translateBatch(array $texts, ?string $targetLang = null, string $sourceLang = 'auto'): array
     {
         $results = [];
-        $chunkSize = $this->config['batch']['chunk_size'];
-        $delay = $this->config['batch']['delay_between_requests'];
+        $chunkSize = $this->config['batch']['chunk_size'] ?? 50;
+        $delay = $this->config['batch']['delay_between_requests'] ?? 100;
 
-        foreach (array_chunk($texts, $chunkSize) as $chunk) {
-            foreach ($chunk as $key => $text) {
-                $results[$key] = $this->translate($text, $targetLang, $sourceLang);
+        // Check cache for all texts first
+        $uncachedTexts = [];
+        $uncachedKeys = [];
+        
+        foreach ($texts as $key => $text) {
+            if ($this->config['cache']['enabled']) {
+                $cached = $this->getCachedTranslation($text, $targetLang ?? $this->config['target_lang'], $sourceLang);
+                if ($cached !== null) {
+                    $results[$key] = $cached;
+                    $this->trackCacheHit();
+                    continue;
+                }
+            }
+            $uncachedTexts[] = $text;
+            $uncachedKeys[] = $key;
+        }
+
+        // Process uncached texts in chunks
+        if (!empty($uncachedTexts)) {
+            foreach (array_chunk($uncachedTexts, $chunkSize, true) as $chunkKeys => $chunk) {
+                $chunkResults = [];
                 
-                if ($delay > 0) {
-                    usleep($delay * 1000); // Convert to microseconds
+                foreach ($chunk as $idx => $text) {
+                    $translation = $this->translate($text, $targetLang, $sourceLang);
+                    $chunkResults[$idx] = $translation;
+                    
+                    // Add delay between requests to avoid rate limiting
+                    if ($delay > 0 && $idx < count($chunk) - 1) {
+                        usleep($delay * 1000); // Convert to microseconds
+                    }
+                }
+                
+                // Merge chunk results
+                foreach ($chunkResults as $idx => $translation) {
+                    $originalKey = $uncachedKeys[array_search($idx, array_keys($chunkResults))];
+                    $results[$originalKey] = $translation;
                 }
             }
         }
 
+        // Sort results by original keys
+        ksort($results);
         return $results;
     }
 
@@ -203,9 +235,10 @@ class TranslatorManager
      *
      * @param string $filePath
      * @param string $targetLang
+     * @param callable|null $progressCallback
      * @return array
      */
-    public function translateFile(string $filePath, string $targetLang): array
+    public function translateFile(string $filePath, string $targetLang, ?callable $progressCallback = null): array
     {
         if (!file_exists($filePath)) {
             throw new \InvalidArgumentException("File not found: {$filePath}");
@@ -217,7 +250,7 @@ class TranslatorManager
             throw new \InvalidArgumentException("File must return an array");
         }
 
-        return $this->translateArray($content, $targetLang);
+        return $this->translateArray($content, $targetLang, 'auto', $progressCallback);
     }
 
     /**
@@ -226,17 +259,120 @@ class TranslatorManager
      * @param array $data
      * @param string $targetLang
      * @param string $sourceLang
+     * @param callable|null $progressCallback
      * @return array
      */
-    public function translateArray(array $data, string $targetLang, string $sourceLang = 'auto'): array
+    public function translateArray(array $data, string $targetLang, string $sourceLang = 'auto', ?callable $progressCallback = null): array
+    {
+        $result = [];
+        $flatTexts = [];
+        $flatKeys = [];
+
+        // Flatten array and collect all string values
+        $this->flattenArray($data, $flatTexts, $flatKeys);
+
+        if (empty($flatTexts)) {
+            return $data;
+        }
+
+        // Translate all texts in batch
+        $translations = [];
+        $chunkSize = $this->config['batch']['chunk_size'] ?? 50;
+        $delay = $this->config['batch']['delay_between_requests'] ?? 100;
+
+        foreach (array_chunk($flatTexts, $chunkSize, true) as $chunk) {
+            foreach ($chunk as $idx => $text) {
+                $translation = $this->translate($text, $targetLang, $sourceLang);
+                $translations[$idx] = $translation;
+
+                // Call progress callback
+                if ($progressCallback) {
+                    $progressCallback();
+                }
+
+                // Add delay to avoid rate limiting
+                if ($delay > 0) {
+                    usleep($delay * 1000);
+                }
+            }
+        }
+
+        // Rebuild array structure with translations
+        $result = $this->rebuildArray($data, $flatKeys, $translations);
+
+        return $result;
+    }
+
+    /**
+     * Flatten array and collect string values.
+     *
+     * @param array $data
+     * @param array &$texts
+     * @param array &$keys
+     * @param string $prefix
+     * @return void
+     */
+    protected function flattenArray(array $data, array &$texts, array &$keys, string $prefix = ''): void
+    {
+        foreach ($data as $key => $value) {
+            $currentKey = $prefix === '' ? $key : $prefix . '.' . $key;
+            
+            if (is_array($value)) {
+                $this->flattenArray($value, $texts, $keys, $currentKey);
+            } elseif (is_string($value)) {
+                $texts[] = $value;
+                $keys[] = $currentKey;
+            }
+        }
+    }
+
+    /**
+     * Rebuild array structure with translated values.
+     *
+     * @param array $original
+     * @param array $flatKeys
+     * @param array $translations
+     * @return array
+     */
+    protected function rebuildArray(array $original, array $flatKeys, array $translations): array
+    {
+        $result = [];
+        $translationIndex = 0;
+
+        foreach ($original as $key => $value) {
+            if (is_array($value)) {
+                $result[$key] = $this->rebuildArrayRecursive($value, $flatKeys, $translations, $translationIndex, $key);
+            } elseif (is_string($value)) {
+                $result[$key] = $translations[$translationIndex] ?? $value;
+                $translationIndex++;
+            } else {
+                $result[$key] = $value;
+            }
+        }
+
+        return $result;
+    }
+
+    /**
+     * Recursively rebuild array structure.
+     *
+     * @param array $data
+     * @param array $flatKeys
+     * @param array $translations
+     * @param int &$index
+     * @param string $prefix
+     * @return array
+     */
+    protected function rebuildArrayRecursive(array $data, array $flatKeys, array $translations, int &$index, string $prefix = ''): array
     {
         $result = [];
 
         foreach ($data as $key => $value) {
             if (is_array($value)) {
-                $result[$key] = $this->translateArray($value, $targetLang, $sourceLang);
+                $result[$key] = $this->rebuildArrayRecursive($value, $flatKeys, $translations, $index, $prefix . '.' . $key);
             } elseif (is_string($value)) {
-                $result[$key] = $this->translate($value, $targetLang, $sourceLang);
+                $result[$key] = $translations[$index] ?? $value;
+                $index++;
             } else {
                 $result[$key] = $value;
             }

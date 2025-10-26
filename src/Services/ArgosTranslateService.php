@@ -42,7 +42,9 @@ class ArgosTranslateService implements TranslationServiceInterface
 
         if ($response->successful()) {
             $data = $response->json();
-            return $data['translatedText'] ?? $text;
+            $translation = $data['translatedText'] ?? $text;
+            // Decode any URL encoding in the response
+            return urldecode($translation);
         }
 
         throw new \Exception("Argos Translate error: " . $response->body());

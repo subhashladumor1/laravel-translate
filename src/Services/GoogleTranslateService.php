@@ -26,28 +26,62 @@ class GoogleTranslateService implements TranslationServiceInterface
      */
     public function translate(string $text, string $targetLang, string $sourceLang = 'auto'): string
     {
-        // Use Google Translate free endpoint (unofficial)
-        $params = [
-            'client' => 'gtx',
-            'sl' => $sourceLang === 'auto' ? 'auto' : $sourceLang,
-            'tl' => $targetLang,
-            'dt' => 't',
-            'q' => $text,
-        ];
+        try {
+            // Use Google Translate free endpoint (unofficial)
+            $params = [
+                'client' => 'gtx',
+                'sl' => $sourceLang === 'auto' ? 'auto' : $sourceLang,
+                'tl' => $targetLang,
+                'dt' => 't',
+                'q' => $text,
+            ];
 
-        $response = Http::timeout($this->config['timeout'])
-            ->get("{$this->endpoint}/translate_a/single", $params);
+            $response = Http::timeout($this->config['timeout'] ?? 10)
+                ->withHeaders([
+                    'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                    'Accept' => '*/*',
+                ])
+                ->get("{$this->endpoint}/translate_a/single", $params);
 
-        if ($response->successful()) {
-            $data = $response->json();
-            
-            // Parse Google's response format
-            if (isset($data[0][0][0])) {
-                return $data[0][0][0];
+            if ($response->successful()) {
+                $data = $response->json();
+                
+                // Parse Google's response format
+                // Response is array: [[[ "translation", "original", null, null, 3]]] 
+                if (isset($data[0][0][0])) {
+                    $translation = $data[0][0][0];
+                    // Decode any URL encoding in the response
+                    return urldecode(trim($translation));
+                }
+                
+                // Alternative format check
+                if (isset($data[0]) && is_array($data[0])) {
+                    $translations = [];
+                    foreach ($data[0] as $item) {
+                        if (isset($item[0])) {
+                            $translations[] = $item[0];
+                        }
+                    }
+                    if (!empty($translations)) {
+                        return urldecode(trim(implode(' ', $translations)));
+                    }
+                }
+                
+                throw new \Exception("Unexpected Google response format: " . json_encode($data));
             }
-        }
 
-        throw new \Exception("Google Translate API error: " . $response->body());
+            $errorMessage = $response->body();
+            $statusCode = $response->status();
+            throw new \Exception("Google Translate API error (HTTP {$statusCode}): {$errorMessage}");
+            
+        } catch (\Exception $e) {
+            \Log::warning("Google Translate translation failed", [
+                'error' => $e->getMessage(),
+                'text' => substr($text, 0, 100),
+                'target' => $targetLang,
+            ]);
+            throw $e;
+        }
     }
 
     /**
