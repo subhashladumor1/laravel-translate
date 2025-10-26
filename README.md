@@ -5,7 +5,7 @@
 ### Professional Multi-Source Translation Package for Laravel 11+
 
 [![Latest Version](https://img.shields.io/packagist/v/subhashladumor1/laravel-translate.svg?style=flat-square)](https://packagist.org/packages/subhashladumor1/laravel-translate)
-[![Total Downloads](https://img.shields.io/packagist/dt/subhashladumor1/laravel-translate.svg?style=flat-square)](https://packagist.org/packages/subhashladumor1/laravel-translate)
+[![Laravel Version](https://img.shields.io/badge/Laravel-12.x-red.svg?style=flat-square)](https://laravel.com)
 [![License](https://img.shields.io/packagist/l/subhashladumor1/laravel-translate.svg?style=flat-square)](https://packagist.org/packages/subhashladumor1/laravel-translate)
 [![PHP Version](https://img.shields.io/packagist/php-v/subhashladumor1/laravel-translate.svg?style=flat-square)](https://packagist.org/packages/subhashladumor1/laravel-translate)
 
