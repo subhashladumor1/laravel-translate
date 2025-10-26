@@ -26,29 +26,60 @@ class MyMemoryTranslateService implements TranslationServiceInterface
      */
     public function translate(string $text, string $targetLang, string $sourceLang = 'auto'): string
     {
-        $langPair = $sourceLang === 'auto' ? "auto|{$targetLang}" : "{$sourceLang}|{$targetLang}";
-        
-        $params = [
-            'q' => $text,
-            'langpair' => $langPair,
-        ];
-
-        if (!empty($this->config['email'])) {
-            $params['de'] = $this->config['email'];
-        }
-
-        $response = Http::timeout($this->config['timeout'])
-            ->get("{$this->endpoint}/get", $params);
-
-        if ($response->successful()) {
-            $data = $response->json();
+        try {
+            // MyMemory requires source language, default to 'en' if auto
+            $source = $sourceLang === 'auto' ? 'en' : $sourceLang;
+            $langPair = "{$source}|{$targetLang}";
             
-            if (isset($data['responseData']['translatedText'])) {
-                return $data['responseData']['translatedText'];
-            }
-        }
+            $params = [
+                'q' => $text,
+                'langpair' => $langPair,
+            ];
 
-        throw new \Exception("MyMemory API error: " . $response->body());
+            if (!empty($this->config['email'])) {
+                $params['de'] = $this->config['email'];
+            }
+
+            $response = Http::timeout($this->config['timeout'] ?? 10)
+                ->withHeaders([
+                    'Accept' => 'application/json',
+                ])
+                ->get("{$this->endpoint}/get", $params);
+
+            if ($response->successful()) {
+                $data = $response->json();
+                
+                // Check for valid response
+                if (isset($data['responseData']['translatedText'])) {
+                    $translation = $data['responseData']['translatedText'];
+                    
+                    // Check response status/matches
+                    $matches = $data['responseData']['match'] ?? 1;
+                    
+                    // If match is too low and same as input, it might be untranslated
+                    if ($matches < 0.3 && $translation === $text) {
+                        throw new \Exception("Translation quality too low (match: {$matches})");
+                    }
+                    
+                    // Decode any URL encoding in the response
+                    return urldecode(trim($translation));
+                }
+                
+                throw new \Exception("Invalid MyMemory response format: " . json_encode($data));
+            }
+
+            $errorMessage = $response->body();
+            $statusCode = $response->status();
+            throw new \Exception("MyMemory API error (HTTP {$statusCode}): {$errorMessage}");
+            
+        } catch (\Exception $e) {
+            \Log::warning("MyMemory translation failed", [
+                'error' => $e->getMessage(),
+                'text' => substr($text, 0, 100),
+                'target' => $targetLang,
+            ]);
+            throw $e;
+        }
     }
 
     /**

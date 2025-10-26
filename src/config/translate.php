@@ -10,7 +10,7 @@ return [
     | by the package. Supported: "libre", "lingva", "mymemory", "argos", "google"
     |
     */
-    'default_service' => env('TRANSLATE_DEFAULT_SERVICE', 'libre'),
+    'default_service' => env('TRANSLATE_DEFAULT_SERVICE', 'lingva'),
 
     /*
     |--------------------------------------------------------------------------
@@ -19,9 +19,10 @@ return [
     |
     | Define the order of services to try if the default fails.
     | The package will automatically fallback through this chain.
+    | Note: LibreTranslate now requires API key, placed last in fallback.
     |
     */
-    'fallback_chain' => ['libre', 'lingva', 'mymemory', 'google'],
+    'fallback_chain' => ['lingva', 'google', 'mymemory', 'libre'],
 
     /*
     |--------------------------------------------------------------------------
@@ -81,29 +82,29 @@ return [
     */
     'services' => [
         'libre' => [
-            'enabled' => env('TRANSLATE_LIBRE_ENABLED', true),
+            'enabled' => env('TRANSLATE_LIBRE_ENABLED', false),  // Disabled by default (requires API key)
             'endpoint' => env('TRANSLATE_LIBRE_ENDPOINT', 'https://libretranslate.com'),
-            'api_key' => env('TRANSLATE_LIBRE_API_KEY', null), // Optional
-            'timeout' => 10,
+            'api_key' => env('TRANSLATE_LIBRE_API_KEY', null), // Get free key at https://portal.libretranslate.com
+            'timeout' => 15,
         ],
 
         'lingva' => [
             'enabled' => env('TRANSLATE_LINGVA_ENABLED', true),
             'endpoint' => env('TRANSLATE_LINGVA_ENDPOINT', 'https://lingva.ml'),
-            'timeout' => 10,
+            'timeout' => 15,  // Increased timeout
         ],
 
         'mymemory' => [
             'enabled' => env('TRANSLATE_MYMEMORY_ENABLED', true),
             'endpoint' => env('TRANSLATE_MYMEMORY_ENDPOINT', 'https://api.mymemory.translated.net'),
             'email' => env('TRANSLATE_MYMEMORY_EMAIL', null), // Optional for higher limits
-            'timeout' => 10,
+            'timeout' => 15,  // Increased timeout
         ],
 
         'google' => [
-            'enabled' => env('TRANSLATE_GOOGLE_ENABLED', false),
+            'enabled' => env('TRANSLATE_GOOGLE_ENABLED', true),  // Enabled by default
             'endpoint' => env('TRANSLATE_GOOGLE_ENDPOINT', 'https://translate.googleapis.com'),
-            'timeout' => 10,
+            'timeout' => 15,  // Increased timeout
         ],
 
         'argos' => [
@@ -189,7 +190,7 @@ return [
     */
     'batch' => [
         'chunk_size' => 50,
-        'delay_between_requests' => 100, // milliseconds
+        'delay_between_requests' => 50, // milliseconds (reduced from 100 for better performance)
         'max_concurrent' => 5,
     ],
 

@@ -46,10 +46,34 @@ class TranslateFileCommand extends Command
         $this->info("Target language: {$targetLang}");
 
         try {
-            $bar = $this->output->createProgressBar();
+            // Load source file
+            $content = include $sourcePath;
+
+            if (!is_array($content)) {
+                $this->error("File must return an array");
+                return Command::FAILURE;
+            }
+
+            // Count total items
+            $totalItems = count($content, COUNT_RECURSIVE) - count($content);
+            if ($totalItems === 0) {
+                $totalItems = count($content);
+            }
+
+            $this->info("Total items to translate: {$totalItems}");
+            $bar = $this->output->createProgressBar($totalItems);
+            $bar->setFormat('very_verbose');
             $bar->start();
 
-            $translations = Translate::translateFile($sourcePath, $targetLang);
+            // Translate with progress callback
+            $translations = Translate::translateArray(
+                $content, 
+                $targetLang, 
+                'auto',
+                function() use ($bar) {
+                    $bar->advance();
+                }
+            );
 
             $bar->finish();
             $this->newLine(2);
@@ -60,6 +84,12 @@ class TranslateFileCommand extends Command
                 $outputPath = $pathInfo['dirname'] . '/' . $pathInfo['filename'] . ".{$targetLang}." . $pathInfo['extension'];
             }
 
+            // Ensure output directory exists
+            $outputDir = dirname($outputPath);
+            if (!is_dir($outputDir)) {
+                mkdir($outputDir, 0755, true);
+            }
+
             // Save translated content
             if ($format === 'json') {
                 file_put_contents($outputPath, json_encode($translations, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
@@ -68,13 +98,16 @@ class TranslateFileCommand extends Command
                 file_put_contents($outputPath, $content);
             }
 
+            $this->newLine();
             $this->info("✓ Translation completed!");
             $this->info("Output saved to: {$outputPath}");
-            $this->info("Total items translated: " . count($translations, COUNT_RECURSIVE));
+            $this->info("Total items translated: {$totalItems}");
 
             return Command::SUCCESS;
         } catch (\Exception $e) {
+            $this->newLine();
             $this->error("Translation failed: " . $e->getMessage());
+            $this->error("Stack trace: " . $e->getTraceAsString());
             return Command::FAILURE;
         }
     }

@@ -7,6 +7,7 @@ use Subhashladumor1\Translate\Commands\TranslateStringCommand;
 use Subhashladumor1\Translate\Commands\TranslateFileCommand;
 use Subhashladumor1\Translate\Commands\TranslateSyncCommand;
 use Subhashladumor1\Translate\Commands\TranslateClearCacheCommand;
+use Subhashladumor1\Translate\Commands\TestServicesCommand;
 use Subhashladumor1\Translate\Http\Middleware\DetectLocale;
 use Subhashladumor1\Translate\Services\TranslatorManager;
 use Illuminate\Support\Facades\Blade;
@@ -65,6 +66,7 @@ class TranslateServiceProvider extends ServiceProvider
                 TranslateFileCommand::class,
                 TranslateSyncCommand::class,
                 TranslateClearCacheCommand::class,
+                TestServicesCommand::class,
             ]);
         }
 
@@ -87,16 +89,28 @@ class TranslateServiceProvider extends ServiceProvider
     {
         // @translate directive
         Blade::directive('translate', function ($expression) {
-            return "<?php echo app('translate.manager')->translate({$expression}); ?>";
+            return "<?php echo urldecode(app('translate.manager')->translate({$expression})); ?>";
         });
 
         // @translateStart and @translateEnd for block translation
         Blade::directive('translateStart', function ($expression) {
-            return "<?php ob_start(); ?>";
+            // Store parameters in a global variable for @translateEnd to use
+            return "<?php 
+                global \$_translate_block_params;
+                \$_translate_block_params = [{$expression}];
+                ob_start(); 
+            ?>";
         });
 
         Blade::directive('translateEnd', function ($expression) {
-            return "<?php echo app('translate.manager')->translate(ob_get_clean(), {$expression}); ?>";
+            return "<?php 
+                global \$_translate_block_params;
+                \$_content = ob_get_clean();
+                \$_target = \$_translate_block_params[0] ?? null;
+                \$_source = \$_translate_block_params[1] ?? 'auto';
+                echo urldecode(app('translate.manager')->translate(\$_content, \$_target, \$_source));
+                unset(\$_translate_block_params);
+            ?>";
         });
 
         // @detectLang directive

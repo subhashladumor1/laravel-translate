@@ -26,18 +26,40 @@ class LingvaTranslateService implements TranslationServiceInterface
      */
     public function translate(string $text, string $targetLang, string $sourceLang = 'auto'): string
     {
-        $source = $sourceLang === 'auto' ? 'auto' : $sourceLang;
-        $encodedText = urlencode($text);
+        try {
+            $source = $sourceLang === 'auto' ? 'auto' : $sourceLang;
+            $encodedText = rawurlencode($text);
 
-        $response = Http::timeout($this->config['timeout'])
-            ->get("{$this->endpoint}/api/v1/{$source}/{$targetLang}/{$encodedText}");
+            $response = Http::timeout($this->config['timeout'] ?? 10)
+                ->withHeaders([
+                    'Accept' => 'application/json',
+                ])
+                ->get("{$this->endpoint}/api/v1/{$source}/{$targetLang}/{$encodedText}");
 
-        if ($response->successful()) {
-            $data = $response->json();
-            return $data['translation'] ?? $text;
+            if ($response->successful()) {
+                $data = $response->json();
+                
+                if (isset($data['translation'])) {
+                    $translation = $data['translation'];
+                    // Decode any URL encoding in the response
+                    return urldecode(trim($translation));
+                }
+                
+                throw new \Exception("Unexpected Lingva response format: " . json_encode($data));
+            }
+
+            $errorMessage = $response->body();
+            $statusCode = $response->status();
+            throw new \Exception("Lingva API error (HTTP {$statusCode}): {$errorMessage}");
+            
+        } catch (\Exception $e) {
+            \Log::warning("Lingva translation failed", [
+                'error' => $e->getMessage(),
+                'text' => substr($text, 0, 100),
+                'target' => $targetLang,
+            ]);
+            throw $e;
         }
-
-        throw new \Exception("Lingva API error: " . $response->body());
     }
 
     /**
@@ -51,7 +73,7 @@ class LingvaTranslateService implements TranslationServiceInterface
         // Lingva uses auto detection in translation
         // We'll make a translation call to auto and parse the detected language
         try {
-            $encodedText = urlencode($text);
+            $encodedText = rawurlencode($text);
             $response = Http::timeout($this->config['timeout'])
                 ->get("{$this->endpoint}/api/v1/auto/en/{$encodedText}");
 
